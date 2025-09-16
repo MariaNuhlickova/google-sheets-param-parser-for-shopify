@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body { font: 13px/1.4 system-ui, Arial, sans-serif; padding: 12px; }
+      label { display:block; margin: 8px 0 4px; font-weight:600; }
+      input[type="text"], input[type="number"], select {
+        width: 100%; box-sizing: border-box; padding: 6px 8px;
+      }
+      small { color:#555; display:block; margin-top:2px; }
+      .row { margin-bottom: 10px; }
+      button { padding: 8px 12px; }
+      .muted { color:#666; }
+      .ok { color: #0a7; font-weight: 600; }
+      .err { color: #c33; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h2>Param Parser</h2>
+    <div class="row">
+      <label for="sheet">Source sheet</label>
+      <select id="sheet"></select>
+    </div>
+    <div class="row">
+      <label for="headerRow">Header row</label>
+      <input id="headerRow" type="number" value="7" min="1"/>
+      <small>The row number where headers are located (e.g., 7 for GA4 explorations export).</small>
+    </div>
+    <div class="row">
+      <label for="urlHeader">URL column header</label>
+      <input id="urlHeader" type="text" value="Landing page + query string"/>
+      <small>Name of the column that contains URLs with query parameters.</small>
+    </div>
+    <div class="row">
+      <label for="carry">Carry columns (comma-separated)</label>
+      <input id="carry" type="text" value="Event name, Event count"/>
+      <small>Columns you want to keep in the output (e.g., “Event name, Event count”).</small>
+    </div>
+    <div class="row">
+      <label for="params">Params to extract (comma-separated)</label>
+      <input id="params" type="text" value="locale,surface_type,surface_detail,surface_inter_position,surface_intra_position"/>
+      <small>Add more if needed (e.g., search_id, surface_version, partner, utm_* …).</small>
+    </div>
+    <div class="row">
+      <label for="out">Output sheet name</label>
+      <input id="out" type="text" placeholder="auto: &lt;source&gt; - parsed"/>
+      <small class="muted">Leave empty to auto-generate (“&lt;source&gt; - parsed”).</small>
+    </div>
+
+    <div class="row">
+      <button onclick="run()">Build table</button>
+    </div>
+    <div id="status" class="row muted">Ready.</div>
+
+    <script>
+      function setStatus(msg, cls='muted'){ 
+        const s = document.getElementById('status'); 
+        s.className = 'row ' + cls; s.textContent = msg; 
+      }
+
+      function loadSheets() {
+        google.script.run.withSuccessHandler(names => {
+          const sel = document.getElementById('sheet');
+          sel.innerHTML = '';
+          names.forEach(n => {
+            const opt = document.createElement('option');
+            opt.value = n; opt.textContent = n;
+            sel.appendChild(opt);
+          });
+          setStatus('Sheets loaded.');
+        }).withFailureHandler(err => {
+          setStatus('Error loading sheets: ' + err.message, 'err');
+        }).listSheets();
+      }
+
+      function run() {
+        setStatus('Running...', 'muted');
+        const cfg = {
+          sheetName: document.getElementById('sheet').value,
+          headerRow: document.getElementById('headerRow').value,
+          urlHeader: document.getElementById('urlHeader').value,
+          carryHeadersCSV: document.getElementById('carry').value,
+          paramListCSV: document.getElementById('params').value,
+          outputName: document.getElementById('out').value,
+        };
+        google.script.run.withSuccessHandler(res => {
+          setStatus(`OK: ${res.rows} rows → sheet "${res.sheetName}" (${res.cols} cols).`, 'ok');
+        }).withFailureHandler(err => {
+          setStatus('Error: ' + err.message, 'err');
+        }).buildParsedTable(cfg);
+      }
+
+      loadSheets();
+    </script>
+  </body>
+</html>
